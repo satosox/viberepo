@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>よっしーの料理チェック</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🍽️ よっしーの料理チェック</h1>
+            <p>料理の画像をアップロードして、栄養面から評価してもらいましょう！</p>
+        </header>
+
+        <main>
+            <!-- 画像アップロードセクション -->
+            <section class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-content">
+                        <div class="upload-icon">📸</div>
+                        <p>料理の画像をドラッグ&ドロップまたはクリックしてアップロード</p>
+                        <input type="file" id="imageInput" accept="image/*" hidden>
+                        <button class="upload-btn" onclick="document.getElementById('imageInput').click()">
+                            画像を選択
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 評価結果セクション -->
+            <section class="result-section" id="resultSection" style="display: none;">
+                <div class="score-display">
+                    <div class="score-circle">
+                        <span class="score" id="score">0</span>
+                        <span class="score-label">点</span>
+                    </div>
+                </div>
+                
+                <div class="feedback">
+                    <div class="good-points">
+                        <h3>✅ 良い点</h3>
+                        <ul id="goodPoints"></ul>
+                    </div>
+                    <div class="improvements">
+                        <h3>💡 改善点</h3>
+                        <ul id="improvements"></ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 履歴セクション -->
+            <section class="history-section">
+                <h2>📊 1週間の履歴</h2>
+                <div class="history-controls">
+                    <button id="showHistory" class="btn">履歴を表示</button>
+                    <button id="clearHistory" class="btn btn-danger">履歴をクリア</button>
+                </div>
+                <div class="history-list" id="historyList"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
