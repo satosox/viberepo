@@ -139,6 +139,20 @@ header p {
     font-size: 3rem;
     font-weight: bold;
     line-height: 1;
+    transition: all 0.3s ease-out;
+}
+
+.score-animating {
+    animation: scorePulse 0.1s ease-out;
+}
+
+@keyframes scorePulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
 }
 
 .score-label {
@@ -396,6 +410,58 @@ header p {
     border-radius: 20px;
     font-size: 0.9rem;
     font-weight: 500;
+    animation: slideInFromLeft 0.5s ease-out;
+    animation-fill-mode: both;
+}
+
+@keyframes slideInFromLeft {
+    from {
+        transform: translateX(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+#aiAnalysisContainer {
+    transition: opacity 0.5s ease-in;
+}
+
+.feedback li {
+    transition: opacity 0.3s ease-in, transform 0.3s ease-in;
+}
+
+.feedback li:not(:first-child) {
+    animation-delay: 0.2s;
+}
+
+.typing-cursor {
+    display: inline-block;
+    animation: blink 1s infinite;
+    color: #667eea;
+    font-weight: bold;
+}
+
+@keyframes blink {
+    0%, 50% {
+        opacity: 1;
+    }
+    51%, 100% {
+        opacity: 0;
+    }
+}
+
+@keyframes slideInFromBottom {
+    from {
+        transform: translateY(10px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 /* アニメーション */

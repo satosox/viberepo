@@ -406,18 +406,18 @@ function generateEvaluation(score) {
     return { goodPoints, improvements };
 }
 
-// 結果表示
-function displayResult(score, evaluation, aiAnalysis = null) {
+// 結果表示（アニメーション付き）
+async function displayResult(score, evaluation, aiAnalysis = null) {
     // 結果セクションのHTMLを再構築
     resultSection.innerHTML = `
         <div class="score-display">
             <div class="score-circle">
-                <span class="score">${score}</span>
+                <span class="score" id="animatedScore">0</span>
                 <span class="score-label">点</span>
             </div>
         </div>
         
-        ${aiAnalysis ? createAIAnalysisInfo(aiAnalysis) : ''}
+        <div id="aiAnalysisContainer" style="display: none;"></div>
         
         <div class="feedback">
             <div class="good-points">
@@ -431,38 +431,168 @@ function displayResult(score, evaluation, aiAnalysis = null) {
         </div>
     `;
     
-    // 要素を再取得
-    const goodPointsElement = document.getElementById('goodPoints');
-    const improvementsElement = document.getElementById('improvements');
-    
-    // 良い点の表示
-    goodPointsElement.innerHTML = '';
-    evaluation.goodPoints.forEach(point => {
-        const li = document.createElement('li');
-        li.textContent = point;
-        goodPointsElement.appendChild(li);
-    });
-    
-    // 改善点の表示
-    improvementsElement.innerHTML = '';
-    evaluation.improvements.forEach(point => {
-        const li = document.createElement('li');
-        li.textContent = point;
-        improvementsElement.appendChild(li);
-    });
-    
     // 結果セクションを表示
     resultSection.style.display = 'block';
     resultSection.scrollIntoView({ behavior: 'smooth' });
+    
+    // スコアを徐々にカウントアップ
+    await animateScore(score);
+    
+    // 少し待ってからAI分析結果を表示
+    await new Promise(resolve => setTimeout(resolve, 300));
+    if (aiAnalysis) {
+        await displayAIAnalysis(aiAnalysis);
+    }
+    
+    // 少し待ってから良い点を表示
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await displayGoodPoints(evaluation.goodPoints);
+    
+    // 最後に改善点を表示
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await displayImprovements(evaluation.improvements);
+}
+
+// スコアをアニメーション
+function animateScore(targetScore) {
+    return new Promise(resolve => {
+        const scoreElement = document.getElementById('animatedScore');
+        let currentScore = 0;
+        const increment = targetScore / 30; // 30フレームでカウントアップ
+        const duration = 1000; // 1秒
+        
+        const timer = setInterval(() => {
+            currentScore += increment;
+            if (currentScore >= targetScore) {
+                scoreElement.textContent = targetScore;
+                clearInterval(timer);
+                // 最終スコア到達時のパルス効果
+                scoreElement.classList.add('score-animating');
+                setTimeout(() => {
+                    scoreElement.classList.remove('score-animating');
+                }, 300);
+                resolve();
+            } else {
+                scoreElement.textContent = Math.floor(currentScore);
+            }
+        }, duration / 30);
+    });
+}
+
+// AI分析結果をアニメーション付きで表示
+function displayAIAnalysis(aiAnalysis) {
+    return new Promise(resolve => {
+        const container = document.getElementById('aiAnalysisContainer');
+        container.innerHTML = createAIAnalysisInfo(aiAnalysis);
+        container.style.display = 'block';
+        
+        // フェードイン効果
+        container.style.opacity = '0';
+        const fadeIn = setInterval(() => {
+            const currentOpacity = parseFloat(container.style.opacity);
+            if (currentOpacity < 1) {
+                container.style.opacity = (currentOpacity + 0.1).toString();
+            } else {
+                clearInterval(fadeIn);
+                resolve();
+            }
+        }, 30);
+    });
+}
+
+// 良い点をアニメーション付きで表示
+function displayGoodPoints(goodPoints) {
+    return new Promise(async (resolve) => {
+        const goodPointsElement = document.getElementById('goodPoints');
+        goodPointsElement.innerHTML = '';
+        
+        for (let i = 0; i < goodPoints.length; i++) {
+            const point = goodPoints[i];
+            const li = document.createElement('li');
+            li.textContent = '';
+            li.style.opacity = '0';
+            goodPointsElement.appendChild(li);
+            
+            await typeWriter(li, point, 30);
+            
+            // フェードイン効果
+            const fadeIn = setInterval(() => {
+                const currentOpacity = parseFloat(li.style.opacity);
+                if (currentOpacity < 1) {
+                    li.style.opacity = (currentOpacity + 0.2).toString();
+                } else {
+                    clearInterval(fadeIn);
+                }
+            }, 20);
+            
+            // 次のポイントまで少し待つ
+            await new Promise(r => setTimeout(r, 200));
+        }
+        
+        resolve();
+    });
+}
+
+// 改善点をアニメーション付きで表示
+function displayImprovements(improvements) {
+    return new Promise(async (resolve) => {
+        const improvementsElement = document.getElementById('improvements');
+        improvementsElement.innerHTML = '';
+        
+        for (let i = 0; i < improvements.length; i++) {
+            const point = improvements[i];
+            const li = document.createElement('li');
+            li.textContent = '';
+            li.style.opacity = '0';
+            improvementsElement.appendChild(li);
+            
+            await typeWriter(li, point, 30);
+            
+            // フェードイン効果
+            const fadeIn = setInterval(() => {
+                const currentOpacity = parseFloat(li.style.opacity);
+                if (currentOpacity < 1) {
+                    li.style.opacity = (currentOpacity + 0.2).toString();
+                } else {
+                    clearInterval(fadeIn);
+                }
+            }, 20);
+            
+            // 次のポイントまで少し待つ
+            await new Promise(r => setTimeout(r, 200));
+        }
+        
+        resolve();
+    });
+}
+
+// タイプライター効果
+function typeWriter(element, text, speed) {
+    return new Promise((resolve) => {
+        let index = 0;
+        const cursor = '<span class="typing-cursor">|</span>';
+        
+        const timer = setInterval(() => {
+            if (index < text.length) {
+                element.innerHTML = text.substring(0, index + 1) + cursor;
+                index++;
+            } else {
+                element.textContent = text; // カーソルを削除
+                clearInterval(timer);
+                resolve();
+            }
+        }, speed);
+    });
 }
 
 // AI分析結果の表示用HTML生成
 function createAIAnalysisInfo(aiAnalysis) {
     if (!aiAnalysis || aiAnalysis.length === 0) return '';
     
-    const topItems = aiAnalysis.slice(0, 3).map(item => ({
+    const topItems = aiAnalysis.slice(0, 3).map((item, index) => ({
         label: item.label,
-        confidence: Math.round(item.score * 100)
+        confidence: Math.round(item.score * 100),
+        delay: index * 150
     }));
     
     return `
@@ -470,7 +600,7 @@ function createAIAnalysisInfo(aiAnalysis) {
             <h4>🤖 AIが検出した食材</h4>
             <div class="ai-detected-items">
                 ${topItems.map(item => `
-                    <span class="ai-detected-item">
+                    <span class="ai-detected-item" style="animation-delay: ${item.delay}ms;">
                         ${item.label} (${item.confidence}%)
                     </span>
                 `).join('')}
