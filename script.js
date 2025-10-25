@@ -97,18 +97,30 @@ async function evaluateDish(imageData) {
         
     } catch (error) {
         console.error('AI分析エラー:', error);
-        // エラー時はフォールバック評価を使用
-        const score = Math.floor(Math.random() * 40) + 60;
-        const evaluation = generateEvaluation(score);
-        displayResult(score, evaluation);
-        saveToHistory(score, evaluation);
-        showErrorMessage('AI分析に失敗しました。フォールバック評価を表示しています。');
+        // エラー時はメッセージを表示してユーザーに再試行を促す
+        resultSection.innerHTML = `
+            <div class="error-container" style="text-align: center; padding: 40px;">
+                <h2>⚠️ AI分析エラー</h2>
+                <p style="color: #666; margin: 20px 0;">
+                    AI分析に失敗しました。しばらく待ってから再度お試しください。
+                </p>
+                <p style="color: #999; font-size: 0.9rem; margin: 10px 0;">
+                    エラー詳細: ${error.message}
+                </p>
+                <button onclick="location.reload()" class="btn" style="margin-top: 20px;">
+                    ページを再読み込み
+                </button>
+            </div>
+        `;
+        resultSection.style.display = 'block';
     }
 }
 
 // AI画像分析（無料の画像認識API使用）
 async function analyzeImageWithAI(imageData) {
     try {
+        console.log('AI分析を開始します...');
+        
         // Base64データをBlobに変換
         const response = await fetch(imageData);
         const blob = await response.blob();
@@ -117,28 +129,84 @@ async function analyzeImageWithAI(imageData) {
         const formData = new FormData();
         formData.append('image', blob);
         
-        const apiResponse = await fetch('https://api-inference.huggingface.co/models/nateraw/food-image-classification', {
-            method: 'POST',
-            body: formData
-        });
+        // リトライロジック
+        let retries = 3;
+        let lastError = null;
         
-        if (!apiResponse.ok) {
-            // APIが利用できない場合は、画像の色分析による代替実装
-            return await analyzeImageColors(imageData);
+        while (retries > 0) {
+            try {
+                const apiResponse = await fetch('https://api-inference.huggingface.co/models/nateraw/food-image-classification', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!apiResponse.ok) {
+                    throw new Error(`API response not ok: ${apiResponse.status}`);
+                }
+                
+                const result = await apiResponse.json();
+                
+                // エラーレスポンスの場合はリトライ
+                if (result.error) {
+                    console.log('API error:', result.error, '残りリトライ:', retries - 1);
+                    if (retries > 1) {
+                        // モデルが起動中の場合、少し待ってからリトライ
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                        retries--;
+                        continue;
+                    }
+                    throw new Error(result.error);
+                }
+                
+                console.log('AI分析成功:', result);
+                return result;
+                
+            } catch (error) {
+                console.log('API呼び出しエラー:', error, '残りリトライ:', retries - 1);
+                lastError = error;
+                if (retries > 1) {
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    retries--;
+                    continue;
+                }
+                throw error;
+            }
         }
         
-        const result = await apiResponse.json();
-        
-        // エラーレスポンスの場合は代替実装を使用
-        if (result.error) {
-            return await analyzeImageColors(imageData);
-        }
-        
-        return result;
+        throw lastError;
         
     } catch (error) {
-        console.log('API呼び出し失敗、代替分析を使用:', error);
-        return await analyzeImageColors(imageData);
+        console.error('Hugging Face API失敗:', error);
+        console.log('代替APIを試行します...');
+        
+        // 代替APIを試行
+        console.log('代替料理分類モデルを試行します...');
+        try {
+            const response = await fetch(imageData);
+            const blob = await response.blob();
+            
+            const formData = new FormData();
+            formData.append('image', blob);
+            
+            // 別の料理分類モデルを試行
+            const apiResponse = await fetch('https://api-inference.huggingface.co/models/microsoft/swin-tiny-patch4-window7-224', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (apiResponse.ok) {
+                const result = await apiResponse.json();
+                if (!result.error) {
+                    console.log('代替モデル成功:', result);
+                    return result;
+                }
+            }
+        } catch (secondError) {
+            console.error('代替モデルも失敗:', secondError);
+        }
+        
+        // 全て失敗した場合は、より詳細なエラーメッセージを返す
+        throw new Error('AI分析に失敗しました。Hugging FaceのAPIが一時的に利用できない可能性があります。しばらく待ってから再度お試しください。');
     }
 }
 
@@ -333,8 +401,16 @@ function generateAIEvaluation(aiAnalysis, score) {
 
 // ローディング状態の表示
 function showLoadingState() {
-    // 結果セクションを非表示にするだけ（後でdisplayResultで再構築される）
-    resultSection.style.display = 'none';
+    resultSection.innerHTML = `
+        <div class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>AIが料理を分析中...</p>
+            <p style="font-size: 0.9rem; color: #666; margin-top: 10px;">
+                初回の場合はモデルの起動に時間がかかる場合があります
+            </p>
+        </div>
+    `;
+    resultSection.style.display = 'block';
 }
 
 // エラーメッセージの表示
