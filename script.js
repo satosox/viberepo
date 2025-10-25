@@ -333,13 +333,8 @@ function generateAIEvaluation(aiAnalysis, score) {
 
 // ローディング状態の表示
 function showLoadingState() {
-    resultSection.innerHTML = `
-        <div class="loading-container">
-            <div class="loading-spinner"></div>
-            <p>AIが料理を分析中...</p>
-        </div>
-    `;
-    resultSection.style.display = 'block';
+    // 結果セクションを非表示にするだけ（後でdisplayResultで再構築される）
+    resultSection.style.display = 'none';
 }
 
 // エラーメッセージの表示
@@ -527,6 +522,14 @@ function displayDishInfo(aiAnalysis) {
         const dishNameElement = document.getElementById('detectedDishName');
         const ingredientsList = document.getElementById('ingredientsList');
         
+        console.log('displayDishInfo called', { dishInfoContainer, dishNameElement, ingredientsList, aiAnalysis });
+        
+        if (!dishInfoContainer || !dishNameElement || !ingredientsList) {
+            console.error('要素が見つかりません');
+            resolve();
+            return;
+        }
+        
         if (aiAnalysis && aiAnalysis.length > 0) {
             // 料理名を表示（最高スコアのものを使用）
             const topDish = aiAnalysis[0];
@@ -563,7 +566,10 @@ function displayNutritionChart(aiAnalysis, score) {
         const chartContainer = document.getElementById('nutritionChart');
         const canvas = document.getElementById('radarChart');
         
-        if (!canvas) {
+        console.log('displayNutritionChart called', { chartContainer, canvas, aiAnalysis, score });
+        
+        if (!canvas || !chartContainer) {
+            console.error('チャート要素が見つかりません');
             resolve();
             return;
         }
