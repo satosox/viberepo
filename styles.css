@@ -337,6 +337,21 @@ header p {
         flex-direction: column;
         align-items: center;
     }
+    
+    .dish-info-container {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .dish-name-text {
+        font-size: 1.4rem;
+        padding: 12px;
+    }
+    
+    #radarChart {
+        width: 100%;
+        height: auto;
+    }
 }
 
 /* ローディングスピナー */
@@ -427,6 +442,89 @@ header p {
 
 #aiAnalysisContainer {
     transition: opacity 0.5s ease-in;
+}
+
+/* 料理情報コンテナ */
+.dish-info-container {
+    background: white;
+    border-radius: 20px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    transition: opacity 0.5s ease-in;
+}
+
+.dish-name h3 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 1.3rem;
+}
+
+.dish-name-text {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #667eea;
+    text-align: center;
+    padding: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+}
+
+.ingredients h3 {
+    color: #333;
+    margin-bottom: 15px;
+    font-size: 1.3rem;
+}
+
+.ingredients-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.ingredient-tag {
+    background: #f0f4ff;
+    color: #667eea;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    border: 2px solid #667eea;
+    transition: all 0.3s ease;
+}
+
+.ingredient-tag:hover {
+    background: #667eea;
+    color: white;
+    transform: translateY(-2px);
+}
+
+/* 栄養チャートコンテナ */
+.nutrition-chart-container {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 30px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    transition: opacity 0.5s ease-in;
+}
+
+.nutrition-chart-container h3 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 1.3rem;
+    text-align: center;
+}
+
+#radarChart {
+    display: block;
+    margin: 0 auto;
+    max-width: 100%;
+    height: auto;
 }
 
 .feedback li {

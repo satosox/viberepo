@@ -418,6 +418,22 @@ async function displayResult(score, evaluation, aiAnalysis = null) {
         </div>
         
         <div id="aiAnalysisContainer" style="display: none;"></div>
+
+        <div id="dishInfo" class="dish-info-container" style="display: none;">
+            <div class="dish-name">
+                <h3>🍽️ 料理名</h3>
+                <p id="detectedDishName" class="dish-name-text"></p>
+            </div>
+            <div class="ingredients">
+                <h3>🥗 想定される食材</h3>
+                <div id="ingredientsList" class="ingredients-list"></div>
+            </div>
+        </div>
+
+        <div id="nutritionChart" class="nutrition-chart-container" style="display: none;">
+            <h3>📊 5大栄養素レーダーチャート</h3>
+            <canvas id="radarChart" width="400" height="400"></canvas>
+        </div>
         
         <div class="feedback">
             <div class="good-points">
@@ -442,6 +458,10 @@ async function displayResult(score, evaluation, aiAnalysis = null) {
     await new Promise(resolve => setTimeout(resolve, 300));
     if (aiAnalysis) {
         await displayAIAnalysis(aiAnalysis);
+        // 料理情報を表示
+        await displayDishInfo(aiAnalysis);
+        // 栄養チャートを表示
+        await displayNutritionChart(aiAnalysis, score);
     }
     
     // 少し待ってから良い点を表示
@@ -498,6 +518,228 @@ function displayAIAnalysis(aiAnalysis) {
             }
         }, 30);
     });
+}
+
+// 料理情報を表示
+function displayDishInfo(aiAnalysis) {
+    return new Promise(resolve => {
+        const dishInfoContainer = document.getElementById('dishInfo');
+        const dishNameElement = document.getElementById('detectedDishName');
+        const ingredientsList = document.getElementById('ingredientsList');
+        
+        if (aiAnalysis && aiAnalysis.length > 0) {
+            // 料理名を表示（最高スコアのものを使用）
+            const topDish = aiAnalysis[0];
+            dishNameElement.textContent = topDish.label;
+            
+            // 食材リストを生成
+            const allIngredients = aiAnalysis.slice(0, 5).map(item => item.label);
+            ingredientsList.innerHTML = allIngredients.map(ingredient => 
+                `<span class="ingredient-tag">${ingredient}</span>`
+            ).join('');
+            
+            dishInfoContainer.style.display = 'block';
+            
+            // フェードイン効果
+            dishInfoContainer.style.opacity = '0';
+            const fadeIn = setInterval(() => {
+                const currentOpacity = parseFloat(dishInfoContainer.style.opacity);
+                if (currentOpacity < 1) {
+                    dishInfoContainer.style.opacity = (currentOpacity + 0.1).toString();
+                } else {
+                    clearInterval(fadeIn);
+                    resolve();
+                }
+            }, 30);
+        } else {
+            resolve();
+        }
+    });
+}
+
+// 栄養チャートを表示
+function displayNutritionChart(aiAnalysis, score) {
+    return new Promise(resolve => {
+        const chartContainer = document.getElementById('nutritionChart');
+        const canvas = document.getElementById('radarChart');
+        
+        if (!canvas) {
+            resolve();
+            return;
+        }
+        
+        const ctx = canvas.getContext('2d');
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const radius = Math.min(centerX, centerY) - 40;
+        
+        // AI分析結果に基づいて5大栄養素の値を計算
+        const nutrients = calculateNutrients(aiAnalysis, score);
+        
+        // チャートを描画
+        drawRadarChart(ctx, centerX, centerY, radius, nutrients);
+        
+        chartContainer.style.display = 'block';
+        
+        // フェードイン効果
+        chartContainer.style.opacity = '0';
+        const fadeIn = setInterval(() => {
+            const currentOpacity = parseFloat(chartContainer.style.opacity);
+            if (currentOpacity < 1) {
+                chartContainer.style.opacity = (currentOpacity + 0.1).toString();
+            } else {
+                clearInterval(fadeIn);
+                resolve();
+            }
+        }, 30);
+    });
+}
+
+// 5大栄養素の値を計算
+function calculateNutrients(aiAnalysis, score) {
+    const nutrients = {
+        protein: 50,      // タンパク質
+        carb: 50,         // 炭水化物
+        fat: 50,          // 脂質
+        vitamin: 50,      // ビタミン
+        mineral: 50       // ミネラル
+    };
+    
+    if (aiAnalysis && aiAnalysis.length > 0) {
+        aiAnalysis.forEach(item => {
+            const label = item.label.toLowerCase();
+            
+            // タンパク質の検出
+            if (label.includes('meat') || label.includes('chicken') || label.includes('fish') || label.includes('egg')) {
+                nutrients.protein += 20 * item.score;
+            }
+            
+            // 炭水化物の検出
+            if (label.includes('bread') || label.includes('rice') || label.includes('pasta') || label.includes('carb')) {
+                nutrients.carb += 20 * item.score;
+            }
+            
+            // 脂質の検出
+            if (label.includes('fried') || label.includes('oil') || label.includes('fat')) {
+                nutrients.fat += 20 * item.score;
+            }
+            
+            // ビタミンの検出（野菜や果物）
+            if (label.includes('vegetable') || label.includes('fruit') || label.includes('salad')) {
+                nutrients.vitamin += 30 * item.score;
+            }
+            
+            // ミネラルの検出
+            if (label.includes('vegetable') || label.includes('seaweed') || label.includes('fish')) {
+                nutrients.mineral += 25 * item.score;
+            }
+        });
+    }
+    
+    // スコアに基づく調整
+    const scoreMultiplier = score / 100;
+    Object.keys(nutrients).forEach(key => {
+        nutrients[key] = Math.min(100, nutrients[key] * scoreMultiplier);
+    });
+    
+    return nutrients;
+}
+
+// レーダーチャートを描画
+function drawRadarChart(ctx, centerX, centerY, radius, nutrients) {
+    const labels = ['タンパク質', '炭水化物', '脂質', 'ビタミン', 'ミネラル'];
+    const values = [
+        nutrients.protein,
+        nutrients.carb,
+        nutrients.fat,
+        nutrients.vitamin,
+        nutrients.mineral
+    ];
+    
+    const numPoints = 5;
+    const angleStep = (Math.PI * 2) / numPoints;
+    
+    // グリッド線を描画
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 1;
+    
+    for (let i = 1; i <= 5; i++) {
+        const r = (radius / 5) * i;
+        ctx.beginPath();
+        for (let j = 0; j < numPoints; j++) {
+            const angle = j * angleStep - Math.PI / 2;
+            const x = centerX + r * Math.cos(angle);
+            const y = centerY + r * Math.sin(angle);
+            if (j === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+        ctx.closePath();
+        ctx.stroke();
+    }
+    
+    // 軸線を描画
+    ctx.strokeStyle = '#ccc';
+    ctx.lineWidth = 1;
+    for (let j = 0; j < numPoints; j++) {
+        const angle = j * angleStep - Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(
+            centerX + radius * Math.cos(angle),
+            centerY + radius * Math.sin(angle)
+        );
+        ctx.stroke();
+    }
+    
+    // データを描画
+    ctx.fillStyle = 'rgba(102, 126, 234, 0.3)';
+    ctx.strokeStyle = '#667eea';
+    ctx.lineWidth = 2;
+    
+    ctx.beginPath();
+    for (let i = 0; i < numPoints; i++) {
+        const angle = i * angleStep - Math.PI / 2;
+        const value = values[i] / 100; // 0-1に正規化
+        const r = radius * value;
+        const x = centerX + r * Math.cos(angle);
+        const y = centerY + r * Math.sin(angle);
+        
+        if (i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    
+    // ラベルを描画
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'center';
+    
+    for (let i = 0; i < numPoints; i++) {
+        const angle = i * angleStep - Math.PI / 2;
+        const labelX = centerX + (radius + 25) * Math.cos(angle);
+        const labelY = centerY + (radius + 25) * Math.sin(angle);
+        ctx.fillText(labels[i], labelX, labelY);
+    }
+    
+    // 値のラベルを描画
+    ctx.fillStyle = '#667eea';
+    ctx.font = 'bold 10px Arial';
+    for (let i = 0; i < numPoints; i++) {
+        const angle = i * angleStep - Math.PI / 2;
+        const value = values[i] / 100;
+        const r = radius * value;
+        const x = centerX + r * Math.cos(angle);
+        const y = centerY + r * Math.sin(angle);
+        ctx.fillText(Math.round(values[i]), x, y - 5);
+    }
 }
 
 // 良い点をアニメーション付きで表示
