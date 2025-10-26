@@ -116,98 +116,95 @@ async function evaluateDish(imageData) {
     }
 }
 
-// AI画像分析（無料の画像認識API使用）
+// グローバル変数にMobileNetモデルを保存
+let mobilenetModel = null;
+
+// AI画像分析（TensorFlow.js MobileNet使用）
 async function analyzeImageWithAI(imageData) {
     try {
         console.log('AI分析を開始します...');
         
-        // Base64データをBlobに変換
-        const response = await fetch(imageData);
-        const blob = await response.blob();
-        
-        // Hugging Faceの無料API（トークン不要）
-        const formData = new FormData();
-        formData.append('image', blob);
-        
-        // リトライロジック
-        let retries = 3;
-        let lastError = null;
-        
-        while (retries > 0) {
-            try {
-                const apiResponse = await fetch('https://api-inference.huggingface.co/models/nateraw/food-image-classification', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                if (!apiResponse.ok) {
-                    throw new Error(`API response not ok: ${apiResponse.status}`);
-                }
-                
-                const result = await apiResponse.json();
-                
-                // エラーレスポンスの場合はリトライ
-                if (result.error) {
-                    console.log('API error:', result.error, '残りリトライ:', retries - 1);
-                    if (retries > 1) {
-                        // モデルが起動中の場合、少し待ってからリトライ
-                        await new Promise(resolve => setTimeout(resolve, 3000));
-                        retries--;
-                        continue;
-                    }
-                    throw new Error(result.error);
-                }
-                
-                console.log('AI分析成功:', result);
-                return result;
-                
-            } catch (error) {
-                console.log('API呼び出しエラー:', error, '残りリトライ:', retries - 1);
-                lastError = error;
-                if (retries > 1) {
-                    await new Promise(resolve => setTimeout(resolve, 3000));
-                    retries--;
-                    continue;
-                }
-                throw error;
-            }
+        // MobileNetモデルをロード（初回のみ）
+        if (!mobilenetModel) {
+            console.log('MobileNetモデルをロード中...');
+            mobilenetModel = await mobilenet.load({
+                version: 2,
+                alpha: 1.0
+            });
+            console.log('MobileNetモデルロード完了');
         }
         
-        throw lastError;
+        // 画像をロード
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        return new Promise((resolve, reject) => {
+            img.onload = async () => {
+                try {
+                    console.log('画像の分類を実行中...');
+                    const predictions = await mobilenetModel.classify(img, 5);
+                    console.log('AI分析成功:', predictions);
+                    
+                    // MobileNetの結果をHugging Faceフォーマットに変換
+                    const result = predictions.map(pred => ({
+                        label: translateLabel(pred.className),
+                        score: pred.probability
+                    }));
+                    
+                    resolve(result);
+                } catch (error) {
+                    console.error('画像分類エラー:', error);
+                    reject(error);
+                }
+            };
+            
+            img.onerror = (error) => {
+                console.error('画像読み込みエラー:', error);
+                reject(new Error('画像の読み込みに失敗しました'));
+            };
+            
+            img.src = imageData;
+        });
         
     } catch (error) {
-        console.error('Hugging Face API失敗:', error);
-        console.log('代替APIを試行します...');
-        
-        // 代替APIを試行
-        console.log('代替料理分類モデルを試行します...');
-        try {
-            const response = await fetch(imageData);
-            const blob = await response.blob();
-            
-            const formData = new FormData();
-            formData.append('image', blob);
-            
-            // 別の料理分類モデルを試行
-            const apiResponse = await fetch('https://api-inference.huggingface.co/models/microsoft/swin-tiny-patch4-window7-224', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (apiResponse.ok) {
-                const result = await apiResponse.json();
-                if (!result.error) {
-                    console.log('代替モデル成功:', result);
-                    return result;
-                }
-            }
-        } catch (secondError) {
-            console.error('代替モデルも失敗:', secondError);
-        }
-        
-        // 全て失敗した場合は、より詳細なエラーメッセージを返す
-        throw new Error('AI分析に失敗しました。Hugging FaceのAPIが一時的に利用できない可能性があります。しばらく待ってから再度お試しください。');
+        console.error('AI分析エラー:', error);
+        throw new Error('AI分析に失敗しました: ' + error.message);
     }
+}
+
+// ラベルを日本語に翻訳
+function translateLabel(englishLabel) {
+    const translations = {
+        'hot dog': 'ホットドッグ',
+        'pizza': 'ピザ',
+        'hamburger': 'ハンバーガー',
+        'sandwich': 'サンドイッチ',
+        'ice cream': 'アイスクリーム',
+        'cake': 'ケーキ',
+        'coffee': 'コーヒー',
+        'soup': 'スープ',
+        'salad': 'サラダ',
+        'bread': 'パン',
+        'rice': 'ご飯',
+        'noodle': '麺類',
+        'meat': '肉料理',
+        'fish': '魚料理',
+        'vegetable': '野菜料理',
+        'fruit': 'フルーツ'
+    };
+    
+    // 英語ラベルを小文字にして検索
+    const lowerLabel = englishLabel.toLowerCase();
+    
+    // 部分一致で検索
+    for (const [eng, jpn] of Object.entries(translations)) {
+        if (lowerLabel.includes(eng)) {
+            return jpn;
+        }
+    }
+    
+    // 見つからない場合は元のラベルを返す
+    return englishLabel;
 }
 
 // 画像の色分析による代替実装
